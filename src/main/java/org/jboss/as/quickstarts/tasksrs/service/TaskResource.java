@@ -77,16 +77,16 @@ public class TaskResource {
         taskDao.deleteTask(task);
     }
 
-/*
+
     @GET
-    @Path("tasks/{id}")
+    @Path("tasksID/{id}")
     @Produces({ "application/xml", "application/json" })
     public Task getTaskById(@Context SecurityContext context, @PathParam("id") Long id) {
         User user = getUser(context);
 
         return getTask(user, id);
     }
-*/
+
     @GET
     @Path("tasks/{title}")
     @Produces({ "application/xml", "application/json" })
