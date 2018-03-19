@@ -1,4 +1,4 @@
-OpenShift Tasks: JAX-RS, JPA quickstart 
+OpenShift Tasks: JAX-RS, JPA quickstart
 ==============================
 [![CircleCI](https://circleci.com/gh/OpenShiftDemos/openshift-tasks.svg?&style=shield&circle-token=1462d2d99334a912b32f758616eb39f6390a200b)](https://circleci.com/gh/OpenShiftDemos/openshift-tasks)
 
@@ -22,6 +22,7 @@ REST Endpoints on OpenShift
   ```
   curl -i -u 'redhat:redhat1!' -H "Content-Length: 0" -X POST http://tasks-dev.10.1.2.10.xip.io/ws/tasks/task1
   ```
+  curl -i -u 'redhat:redhat1!' -H "Content-Length: 0" -X POST http://tasks-tasks-dev.apps.127.0.0.1.nip.io/ws/tasks/task1
 
 * Get a task by id
 
