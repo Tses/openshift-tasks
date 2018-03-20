@@ -1,0 +1,59 @@
+#!groovy
+
+// Run this node on a Maven Slave
+// Maven Slaves have JDK and Maven already installed
+node('maven') {
+  // Make sure your nexus_openshift_settings.xml
+  // Is pointing to your nexus instance
+  def mvnCmd = "mvn -s ./nexus_openshift_settings.xml"
+
+  stage('Checkout Source') {
+    // Get Source Code from SCM (Git) as configured in the Jenkins Project
+    // Next line for inline script, "checkout scm" for Jenkinsfile from Gogs
+    //git 'http://gogs.xyz-gogs.svc.cluster.local:3000/CICDLabs/openshift-tasks.git'
+    git 'https://github.com/Tses/openshift-tasks.git'
+  }
+  
+  // The following variables need to be defined at the top level and not inside
+  // the scope of a stage - otherwise they would not be accessible from other stages.
+  // Extract version and other properties from the pom.xml
+  def groupId    = getGroupIdFromPom("pom.xml")
+  def artifactId = getArtifactIdFromPom("pom.xml")
+  def version    = getVersionFromPom("pom.xml")
+
+  stage('Build war') {
+    echo "Building version ${version}"
+
+    sh "${mvnCmd} clean package -DskipTests"
+  }  
+  
+ stage('Unit Tests') {
+    echo "Unit Tests"
+    sh "${mvnCmd} test cobertura:cobertura"
+  }  
+ stage('Publish') {
+    echo "Unit Tests"
+    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: '**/target/site/cobertura/coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+    junit "**/target/test-reports/*.xml"
+
+  }    
+
+ 
+  
+  
+}
+
+// Convenience Functions to read variables from the pom.xml
+def getVersionFromPom(pom) {
+  def matcher = readFile(pom) =~ '<version>(.+)</version>'
+  matcher ? matcher[0][1] : null
+}
+def getGroupIdFromPom(pom) {
+  def matcher = readFile(pom) =~ '<groupId>(.+)</groupId>'
+  matcher ? matcher[0][1] : null
+}
+def getArtifactIdFromPom(pom) {
+  def matcher = readFile(pom) =~ '<artifactId>(.+)</artifactId>'
+  matcher ? matcher[0][1] : null
+}
+

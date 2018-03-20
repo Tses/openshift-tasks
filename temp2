@@ -1,0 +1,100 @@
+#!groovy
+
+// Run this node on a Maven Slave
+// Maven Slaves have JDK and Maven already installed
+node('maven') {
+  // Make sure your nexus_openshift_settings.xml
+  // Is pointing to your nexus instance
+  def mvnCmd = "mvn -s ./nexus_openshift_settings.xml"
+  //def soapURL = 'http://tasks-tasks-dev.apps.127.0.0.1.nip.io'
+  def soapURL = 'http://tasks.tasks-dev.svc:8080'
+  
+   
+
+
+
+  stage('Checkout Source') {
+    // Get Source Code from SCM (Git) as configured in the Jenkins Project
+    // Next line for inline script, "checkout scm" for Jenkinsfile from Gogs
+    
+    git 'https://github.com/Tses/openshift-tasks.git'
+  }
+  
+  // The following variables need to be defined at the top level and not inside
+  // the scope of a stage - otherwise they would not be accessible from other stages.
+  // Extract version and other properties from the pom.xml
+  def groupId    = getGroupIdFromPom("pom.xml")
+  def artifactId = getArtifactIdFromPom("pom.xml")
+  def version    = getVersionFromPom("pom.xml")
+
+  stage('Build war') {
+    echo "Building version ${version}"
+
+
+    //sh "${mvnCmd} clean package -DskipTests"
+  }  
+  
+ stage('Unit Tests') {
+    echo "Unit Tests"
+    sh "${mvnCmd} test cobertura:cobertura"
+  }  
+  
+  
+stage('Build OpenShift Image') {
+    def newTag = "TestingCandidate-${version}"
+    echo "New Tag: ${newTag}"
+
+    // Copy the war file we just built and rename to ROOT.war
+    //sh "cp ./target/openshift-tasks.war ./ROOT.war"
+
+    // Start Binary Build in OpenShift using the file we just published
+    // Replace xyz-tasks-dev with the name of your dev project
+    //sh "oc project tasks-dev"
+    //sh "oc start-build tasks --follow --from-file=./ROOT.war -n tasks-dev"
+
+    //openshiftTag alias: 'false', destStream: 'tasks', destTag: newTag, destinationNamespace: 'tasks-dev', namespace: 'tasks-dev', srcStream: 'tasks', srcTag: 'latest', verbose: 'false'
+  }
+
+    stage('Deploy to Dev') {
+      // Patch the DeploymentConfig so that it points to the latest TestingCandidate-${version} Image.
+      // Replace xyz-tasks-dev with the name of your dev project
+      //sh "oc project tasks-dev"
+      //sh "oc patch dc tasks --patch '{\"spec\": { \"triggers\": [ { \"type\": \"ImageChange\", \"imageChangeParams\": { \"containerNames\": [ \"tasks\" ], \"from\": { \"kind\": \"ImageStreamTag\", \"namespace\": \"tasks-dev\", \"name\": \"tasks:TestingCandidate-$version\"}}}]}}' -n tasks-dev"
+
+      //openshiftDeploy depCfg: 'tasks', namespace: 'tasks-dev', verbose: 'false', waitTime: '', waitUnit: 'sec'
+      //openshiftVerifyDeployment depCfg: 'tasks', namespace: 'tasks-dev', replicaCount: '1', verbose: 'false', verifyReplicaCount: 'false', waitTime: '', waitUnit: 'sec'
+      //openshiftVerifyService namespace: 'tasks-dev', svcName: 'tasks', verbose: 'false'
+    }
+  
+  
+ stage('Integration Tests') {
+    echo "Unit Tests"
+    sh "export SOAPURL='$soapURL';${mvnCmd} com.smartbear.soapui:soapui-maven-plugin:5.3.0:test "
+  }  
+  
+ stage('Publish') {
+    echo "Unit Tests"
+    cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: '**/target/site/cobertura/coverage.xml', conditionalCoverageTargets: '70, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '80, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '80, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+    junit "**/TEST*.xml"
+
+  }    
+
+ 
+  
+  
+}
+
+// Convenience Functions to read variables from the pom.xml
+def getVersionFromPom(pom) {
+  def matcher = readFile(pom) =~ '<version>(.+)</version>'
+  matcher ? matcher[0][1] : null
+}
+def getGroupIdFromPom(pom) {
+  def matcher = readFile(pom) =~ '<groupId>(.+)</groupId>'
+  matcher ? matcher[0][1] : null
+}
+def getArtifactIdFromPom(pom) {
+  def matcher = readFile(pom) =~ '<artifactId>(.+)</artifactId>'
+  matcher ? matcher[0][1] : null
+}
+
